@@ -22,7 +22,7 @@ public class WelcomeController {
     }
 
     private String getMessage() {
-        return "Hello World";
+        return "덥다 더워~";
     }
 
 }
