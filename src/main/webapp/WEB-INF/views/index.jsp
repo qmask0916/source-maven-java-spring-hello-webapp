@@ -1,6 +1,7 @@
 <%@ taglib prefix="fmt" uri="http://java.sun.com/jsp/jstl/fmt"%>
-<html>
+<html lang="ko">
 <head>
+<meta charset="utf-8">
 <title>Hello World</title>
 </head>
 <body>
