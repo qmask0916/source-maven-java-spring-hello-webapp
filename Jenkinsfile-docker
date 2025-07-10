@@ -1,0 +1,92 @@
+// Declarative Pipeline
+pipeline {
+    // 파이프라인 전체에서 기본 agent를 지정하지 않음
+    // 각 stage에서 개별적으로 agent를 정의
+    agent none
+
+    // 파이프라인의 각 단계를 정의
+    stages {
+
+        // Stage 1: 소스 코드 가져오기
+        stage('Checkout') {
+            agent {
+                // 이 stage는 'maven:3-openjdk-17' Docker 컨테이너 내부에서 실행
+                docker { image 'maven:3-openjdk-17' }
+            }
+            steps {
+                // Git 저장소에서 'main' 브랜치의 코드를 가져옴
+                git branch: 'main', url: 'https://github.com/qmask0916/source-maven-java-spring-hello-webapp.git'
+            }
+        }
+
+        // Stage 2: 애플리케이션 빌드
+        stage('Build') {
+            agent {
+                docker { image 'maven:3-openjdk-17' }
+            }
+            steps {
+                // Maven을 사용하여 테스트를 건너뛰고 프로젝트를 빌드 및 패키징 (jar 또는 war 생성)
+                sh 'mvn clean package -DskipTests=true'
+            }
+        }
+
+        // Stage 3: 단위 테스트 실행
+        stage('Test') {
+            agent {
+                docker { image 'maven:3-openjdk-17' }
+            }
+            steps {
+                // Maven을 사용하여 단위 테스트를 실행
+                sh 'mvn test'
+            }
+        }
+
+        // Stage 4: Docker 이미지 빌드
+        stage('Build Docker Image') {
+            agent {
+                // 이 stage는 Jenkins Controller(Master) 노드에서 직접 실행
+                // Docker 명령어를 사용하기 위함
+                label 'controller'
+            }
+            steps {
+                // 현재 작업 디렉토리의 Dockerfile을 사용하여 Docker 이미지를 빌드
+                sh 'docker build -t qmask/myweb . '
+            }
+        }
+
+        // Stage 5: Docker 이미지에 태그 추가
+        stage('Tag Docker Image') {
+            agent { label 'controller' }
+            steps {
+                // 빌드 번호를 사용하여 태그 생성 (예: my-app:12)
+                sh 'docker tag qmask/myweb:latest qmask/myweb:${BUILD_NUMBER}'
+            }
+        }
+
+        // Stage 6: Docker 이미지 게시 (Push)
+        stage('Publish Docker Image') {
+            agent { label 'controller' }
+            steps {
+                // Docker Hub 또는 다른 레지스트리에 로그인하여 이미지를 Push
+                // 'docker-registry-credential'는 Jenkins에 등록된 Credential ID
+                withDockerRegistry(credentialsId: 'docker-registry-credential', url: 'https://index.docker.io/v1/') {
+                    // 빌드 번호 태그가 붙은 이미지 Push
+                    sh 'docker push qmask/myweb:${BUILD_NUMBER}'
+                    // 'latest' 태그가 붙은 이미지 Push
+                    sh 'docker push qmask/myweb:latest'
+                }
+            }
+        }
+
+        // Stage 7: Docker 컨테이너 실행
+        stage('Run Docker Container') {
+            agent { label 'controller' }
+            steps {
+                // 배포된 이미지를 사용하여 새 컨테이너를 실행
+                // 호스트의 80번 포트를 컨테이너의 8080 포트와 연결
+                sh 'docker container run --detach --name my-tomcat -p 80:8080 qmask/myweb:${BUILD_NUMBER}'
+            }
+        }
+    }
+}
+
