@@ -1,0 +1,22 @@
+- name: Deploy Application Container
+  hosts: localhost
+  connection: local # 이 플레이북을 Ansible 컨트롤러 자체에서 실행
+  tasks:
+    - name: Create & Start Container with Build Number Tag
+      docker_container:
+        # 배포할 컨테이너의 이름을 'myweb'으로 지정
+        name: myweb
+
+        # 사용할 Docker 이미지 지정
+        # <IMAGE> 부분은 실제 이미지 이름(예: 'my-app')으로 변경 필요
+        # {{ lookup('env','BUILD_NUMBER') }} 구문은 'BUILD_NUMBER'라는
+        # 환경 변수 값을 가져와 이미지 태그로 사용 (예: my-app:123)
+        image: "qmask/myweb:{{ lookup('env','BUILD_NUMBER') }}"
+
+        # 컨테이너의 상태를 'started'로 유지 (없으면 생성 후 시작)
+        state: started
+
+        # 포트 매핑 설정
+        # 호스트의 80번 포트를 컨테이너의 8080 포트로 연결
+        ports:
+          - "80:8080"

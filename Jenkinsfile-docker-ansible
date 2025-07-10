@@ -1,0 +1,91 @@
+// Declarative Pipeline
+pipeline {
+    // 파이프라인 전체에서 기본 agent를 지정하지 않음
+    // 각 stage에서 개별적으로 agent를 정의
+    agent none
+
+    // 파이프라인의 각 단계를 정의
+    stages {
+
+        // Stage 1: 소스 코드 가져오기
+        stage('Checkout') {
+            agent {
+                // 이 stage는 'maven:3-openjdk-17' Docker 컨테이너 내부에서 실행
+                docker { image 'maven:3-openjdk-17' }
+            }
+            steps {
+                // Git 저장소에서 'main' 브랜치의 코드를 가져옴
+                git branch: 'main', url: '<YOUR_GIT_REPOSITORY_URL>'
+            }
+        }
+
+        // Stage 2: 애플리케이션 빌드
+        stage('Build') {
+            agent {
+                docker { image 'maven:3-openjdk-17' }
+            }
+            steps {
+                // Maven을 사용하여 테스트를 건너뛰고 프로젝트를 빌드 및 패키징
+                sh 'mvn clean package -DskipTests=true'
+            }
+        }
+
+        // Stage 3: 단위 테스트 실행
+        stage('Test') {
+            agent {
+                docker { image 'maven:3-openjdk-17' }
+            }
+            steps {
+                // Maven을 사용하여 단위 테스트를 실행
+                sh 'mvn test'
+            }
+        }
+
+        // Stage 4: Docker 이미지 빌드
+        stage('Build Docker Image') {
+            agent {
+                // 이 stage는 Jenkins Controller(Master) 노드에서 직접 실행
+                label 'controller'
+            }
+            steps {
+                // 현재 작업 디렉토리의 Dockerfile을 사용하여 Docker 이미지를 빌드
+                sh 'docker build -t <DOCKER_IMAGE_NAME> . '
+            }
+        }
+
+        // Stage 5: Docker 이미지에 태그 추가
+        stage('Tag Docker Image') {
+            agent { label 'controller' }
+            steps {
+                // 빌드 번호를 사용하여 태그 생성 (예: my-app:12)
+                sh 'docker tag <DOCKER_IMAGE_NAME>:latest <DOCKER_IMAGE_NAME>:${env.BUILD_NUMBER}'
+                // 'latest' 태그 추가
+                sh 'docker tag <DOCKER_IMAGE_NAME>:latest <DOCKER_IMAGE_NAME>:latest'
+            }
+        }
+
+        // Stage 6: Docker 이미지 게시 (Push)
+        stage('Publish Docker Image') {
+            agent { label 'controller' }
+            steps {
+                // Docker Hub 또는 다른 레지스트리에 로그인하여 이미지를 Push
+                withDockerRegistry(credentialsId: 'docker-registry-credential', url: 'https://index.docker.io/v1/') {
+                    // 빌드 번호 태그가 붙은 이미지 Push
+                    sh 'docker push <DOCKER_IMAGE_NAME>:${env.BUILD_NUMBER}'
+                    // 'latest' 태그가 붙은 이미지 Push
+                    sh 'docker push <DOCKER_IMAGE_NAME>:latest'
+                }
+            }
+        }
+
+        // Stage 7: Ansible을 이용한 컨테이너 배포
+        stage('Deploy with Ansible') {
+            agent { label 'controller' }
+            steps {
+                // Jenkins의 Ansible 플러그인을 사용하여 배포 플레이북을 실행
+                // 이 플레이북은 BUILD_NUMBER 환경 변수를 참조하여 올바른 이미지 태그로 컨테이너를 실행
+                ansiblePlaybook(playbook: 'docker-container-deploy.yaml')
+            }
+        }
+    }
+}
