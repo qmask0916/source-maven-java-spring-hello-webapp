@@ -15,7 +15,7 @@ pipeline {
             }
             steps {
                 // Git 저장소에서 'main' 브랜치의 코드를 가져옴
-                git branch: 'main', url: '<YOUR_GIT_REPOSITORY_URL>'
+                git branch: 'main', url: 'git@github.com:qmask0916/source-maven-java-spring-hello-webapp.git'
             }
         }
 
@@ -49,7 +49,7 @@ pipeline {
             }
             steps {
                 // 현재 작업 디렉토리의 Dockerfile을 사용하여 Docker 이미지를 빌드
-                sh 'docker build -t <DOCKER_IMAGE_NAME> . '
+                sh 'docker build -t qmask/myweb . '
             }
         }
 
@@ -58,9 +58,7 @@ pipeline {
             agent { label 'controller' }
             steps {
                 // 빌드 번호를 사용하여 태그 생성 (예: my-app:12)
-                sh 'docker tag <DOCKER_IMAGE_NAME>:latest <DOCKER_IMAGE_NAME>:${env.BUILD_NUMBER}'
-                // 'latest' 태그 추가
-                sh 'docker tag <DOCKER_IMAGE_NAME>:latest <DOCKER_IMAGE_NAME>:latest'
+                sh 'docker tag qmask/myweb:latest qmask/myweb:${env.BUILD_NUMBER}'
             }
         }
 
@@ -71,9 +69,9 @@ pipeline {
                 // Docker Hub 또는 다른 레지스트리에 로그인하여 이미지를 Push
                 withDockerRegistry(credentialsId: 'docker-registry-credential', url: 'https://index.docker.io/v1/') {
                     // 빌드 번호 태그가 붙은 이미지 Push
-                    sh 'docker push <DOCKER_IMAGE_NAME>:${env.BUILD_NUMBER}'
+                    sh 'docker push qmask/myweb:${env.BUILD_NUMBER}'
                     // 'latest' 태그가 붙은 이미지 Push
-                    sh 'docker push <DOCKER_IMAGE_NAME>:latest'
+                    sh 'docker push qmask/myweb:latest'
                 }
             }
         }
