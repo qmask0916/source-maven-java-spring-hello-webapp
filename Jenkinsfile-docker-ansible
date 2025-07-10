@@ -15,7 +15,7 @@ pipeline {
             }
             steps {
                 // Git 저장소에서 'main' 브랜치의 코드를 가져옴
-                git branch: 'main', url: 'git@github.com:qmask0916/source-maven-java-spring-hello-webapp.git'
+                git branch: 'main', url: 'https://github.com/qmask0916/source-maven-java-spring-hello-webapp.git'
             }
         }
 
