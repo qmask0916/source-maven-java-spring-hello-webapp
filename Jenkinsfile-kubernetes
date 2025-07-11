@@ -62,7 +62,7 @@ pipeline {
         stage('Build & Tag & Push Docker Image') {
             steps {
                 container('kaniko') {
-                    sh 'executor --dockerfile=Dockerfile --context=dir:///home/jenkins/agent/workspace/kube_pipeline/ --destination=qmask/myweb:$BUILD_NUMBER --destination=qmask/myweb:latest'
+                    sh 'executor --dockerfile=Dockerfile --context=dir://$WORKSPACE --destination=qmask/myweb:$BUILD_NUMBER --destination=qmask/myweb:latest'
                 }
             }
         }
